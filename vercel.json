@@ -5,7 +5,10 @@
   "functions": {
     "api/[...route].js": {
       "maxDuration": 30
-    }
+    },
+  "api/items/[id].js": {
+    "maxDuration": 30
+  }
   },
   "headers": [
     {
