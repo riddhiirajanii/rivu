@@ -10,10 +10,10 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^0.10.4"
+    "@neondatabase/serverless": "^0.10.4",
+    "dotenv": "^18.0.10"
   },
   "devDependencies": {
-    "better-sqlite3": "^11.8.1",
-    "dotenv": "^16.6.1"
+    "better-sqlite3": "^11.8.1"
   }
 }
