@@ -1,82 +1,51 @@
-# RiVu — full-stack couple app
+# RiVu — Vercel edition
 
-A private two-person app with SQLite persistence, separate accounts, Socket.IO real-time chat,
-presence, read receipts, profile pictures, date-based schedules, and an installable PWA shell.
-No third-party API keys or paid services are required.
+This package adapts the existing RiVu couples app for Vercel's serverless model.
 
-## Requirements
-- Node.js 18 or newer
-- npm
-- Internet for the first `npm install` only (to download open-source packages)
+## Architecture
 
-## Run locally
-1. Extract the ZIP.
-2. Open a terminal in `rivu-fullstack`.
-3. Copy `.env.example` to `.env`.
-4. Set `RIVU_INVITE_CODE` in `.env` to a long private phrase shared only with Kavya.
-5. Run:
+- Static app: `public/`
+- API: `api/[[...route]].js`
+- Database: Neon PostgreSQL
+- Chat and presence: authenticated HTTP polling (about every 3 seconds), rather than a persistent Socket.IO server. This is compatible with serverless functions and provides near-real-time updates.
+- Authentication: scrypt password hashes and HTTP-only, Secure/SameSite cookies.
 
-   ```bash
-   npm install
-   npm start
+## Deploy to Vercel
+
+1. Create a free/paid PostgreSQL project at https://neon.tech and copy its pooled or direct connection string. It must include SSL.
+2. Create a **private** GitHub repository. Upload the contents of this folder (not the outer folder).
+3. Import that repository at https://vercel.com/new.
+4. In Vercel → Project → Settings → Environment Variables, add:
+   - `DATABASE_URL` = your Neon connection string
+   - `RIVU_INVITE_CODE` = a long, private invite code known only to the two of you
+   - `NODE_ENV` = `production`
+5. Deploy. Vercel will serve the `public` directory and route `/api/*` to the serverless API.
+6. Open the generated HTTPS URL and create/sign into your RiVu accounts.
+
+Do not put `.env`, database files, passwords, or private invite codes in GitHub. The `.env.example` is only a placeholder.
+
+## Migrate your existing local RiVu data
+
+The migration tool imports your existing SQLite room, users, sessions, bucket-list items, schedule, scrapbook, and messages into Neon.
+
+1. Keep a backup of your original `rivu-fullstack/data` folder.
+2. Copy the entire original `data` folder (including any `-wal` / `-shm` files if present) into this project folder.
+3. In this project folder, create a local `.env` file containing:
    ```
+   DATABASE_URL=your_neon_connection_string
+   RIVU_INVITE_CODE=your_new_private_invite_code
+   NODE_ENV=production
+   ```
+4. Run `npm install` locally (this installs the migration-only SQLite dependency too).
+5. Run `npm run migrate:sqlite`.
+6. After the migration reports completion, delete the local `.env` before committing or uploading anything. Do not delete your original SQLite backup until you have checked the deployed app.
 
-6. Open http://localhost:3000
-7. Create your account. Kavya opens the same address and creates a separate account
-   using the same invite code.
+The migration is safe to re-run for the same records (it skips existing IDs). Existing passwords are imported as password hashes; you can sign in using your previous usernames and passwords. Old browser sessions may not carry over, so sign in again.
 
-The database is created automatically at `data/rivu.sqlite`. Back up the `data/` folder.
+## Notes and limitations
 
-## What's included
-- **Today schedule:** plans have a date and time. Home shows only today's plans.
-  The Daily Plans page has Today, Upcoming, and All Plans views.
-- Shared bucket list, travel list, games, question jar, heart dump, scrapbook and doodles.
-- Real-time chat and message history.
-- Online/offline presence when the other member has an active connection.
-- Read receipts: sent messages show Sent until the other member opens the chat, then Read.
-- Individual display names and profile photos.
-- Installable PWA manifest, app icon, and basic static-shell service worker.
-- Responsive layout with a bottom navigation bar on narrow screens.
-
-## Accounts and invite code
-Both members register independently with the same invite code. The first account creates
-the private RiVu room; subsequent registrations with the same invite code join that room.
-Do not share the invite code publicly.
-
-## Phone testing on your Wi-Fi
-Find your computer's LAN IP (for example `192.168.1.20`) and open
-`http://192.168.1.20:3000` on the phone. Both devices must be on the same Wi-Fi and
-your firewall must allow the Node process.
-
-For PWA installation, browsers generally require HTTPS or localhost. On a phone visiting
-the computer's plain HTTP LAN address, install prompts may not appear. For local install
-testing, use localhost on the same device or wait until HTTPS deployment. On iPhone,
-use Safari → Share → Add to Home Screen when served securely.
-
-## Notifications
-The app can request browser notification permission from the chat page. This prototype
-shows notifications for new messages while the app page is open but not visible.
-True background push while the browser is fully closed requires Web Push subscriptions
-and VAPID keys (free to generate, but not implemented yet). We can add that after local
-testing; no paid messaging provider is needed.
-
-## Deploy later
-For remote access, deploy to a Node-compatible host with:
-- persistent disk/volume for SQLite
-- WebSocket support
-- HTTPS
-
-Set `NODE_ENV=production`, `RIVU_INVITE_CODE` to a strong private value, and `DB_PATH`
-to a file on persistent storage if needed. Free hosting plans often sleep or have
-ephemeral disks; verify their current terms. A small VPS is more predictable but may
-cost money. Do not expose the app publicly without HTTPS, backups, rate limiting, and
-a security review.
-
-## Privacy and limitations
-- Passwords are hashed using Node's built-in scrypt.
-- Session tokens are random, stored hashed in SQLite, and sent in HTTP-only cookies.
-- Heart-dump entries are shared with both members; the “sensitive” flag is a label,
-  not a privacy boundary.
-- No password reset/account recovery yet.
-- Profile pictures and scrapbook images are stored as data URLs in SQLite; keep files small.
-- This is a personal starter app, not a security-audited production service.
+- Chat messages and presence update by polling, usually within a few seconds; this is not a persistent WebSocket connection.
+- The app uses one private RiVu room. Both people register with the same invite code.
+- The “sensitive” label in Heart Dump is not a separate privacy boundary; entries remain shared with the room.
+- Profile and scrapbook images are stored in PostgreSQL as data URLs. Keep images small.
+- Keep your Neon database credentials and invite code private. Back up Neon data before making schema changes.

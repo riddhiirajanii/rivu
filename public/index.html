@@ -20,11 +20,60 @@
 <section class="section" id="chat"><div class="eyebrow">A LITTLE MESSAGE FROM ME TO YOU</div><h1>Our messages ✉</h1><div class="card"><div id="connection" class="muted">Connecting to live chat…</div><button id="notifyEnable" class="light" style="margin:8px 0">Enable message notifications</button><div id="memberStatus" class="muted" style="margin:7px 0 12px"></div><div class="chatbox" id="chatList"></div><form id="chatForm" class="entry"><input class="field" id="chatInput" placeholder="Write a little message..." required><button>Send ♡</button></form></div></section>
 <div class="foot">made with love, for RiVu ♡</div></main></div>
 <div id="profileModal" class="modal hidden"><div class="modal-card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Your profile ♡</h2><button id="profileClose" class="light">Close</button></div><form id="profileForm"><label class="muted">Display name</label><input class="field" name="name" id="profileName" maxlength="50" required><label class="muted">Profile picture</label><input class="field" type="file" id="profilePhoto" accept="image/png,image/jpeg,image/webp,image/gif"><div id="profilePreview" style="margin:10px 0"></div><button>Save profile</button></form><p class="muted">Your profile is visible to the other person in your RiVu space.</p></div></div>
-<script src="/socket.io/socket.io.js"></script><script>(()=>{
+
+<script>
+/* RiVu Vercel transport: authenticated HTTP polling replaces a long-lived Socket.IO server. */
+window.io = function () {
+  const handlers = {};
+  let active = true, connected = false, cursor = 0, first = true, timer = null, lastMembers = "", pollCount = 0;
+  const socket = {
+    connected: false,
+    on(name, fn) { (handlers[name] ||= []).push(fn); return socket; },
+    fire(name, value) { (handlers[name] || []).forEach(fn => { try { fn(value); } catch(e) { console.error(e); } }); },
+    async emit(name, value, ack) {
+      try {
+        if (name === "chat:send") {
+          const r = await fetch("/api/realtime/send", {method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({text:value})});
+          const j = await r.json(); if (!r.ok) throw new Error(j.error || "Could not send message.");
+          cursor = Math.max(cursor, Number(j.id)||0); socket.fire("chat:message", j); if (typeof ack === "function") ack({ok:true,id:j.id});
+        } else if (name === "chat:read") {
+          const r = await fetch("/api/realtime/read", {method:"POST",credentials:"same-origin"});
+          const j = await r.json(); if (r.ok && j.ids?.length) socket.fire("chat:read-receipt",{ids:j.ids,readAt:j.readAt});
+        }
+      } catch(e) { if (typeof ack === "function") ack({error:e.message}); }
+    },
+    disconnect() { active=false; connected=false; socket.connected=false; if(timer) clearTimeout(timer); }
+  };
+  async function poll() {
+    if (!active) return;
+    try {
+      const r = await fetch("/api/realtime?after="+cursor+"&initial="+(first?"1":"0"), {credentials:"same-origin",cache:"no-store"});
+      if (r.status === 401) { socket.fire("disconnect"); active=false; return; }
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || "Connection unavailable");
+      if (!connected) { connected=true; socket.connected=true; socket.fire("connect"); }
+      if (first) { cursor=Math.max(cursor,Number(j.maxId)||0); first=false; }
+      (j.messages||[]).forEach(m=>{cursor=Math.max(cursor,Number(m.id)||0);socket.fire("chat:message",m);});
+      const online=(j.members||[]).filter(m=>m.online).map(m=>m.id);
+      socket.fire("presence:snapshot",{userIds:online});
+      const signature=JSON.stringify((j.members||[]).map(m=>[m.id,m.name,m.avatar,m.online]));
+      if(lastMembers && signature!==lastMembers) {
+        (j.members||[]).forEach(m=>socket.fire("profile:updated",m));
+      }
+      lastMembers=signature;
+      if(j.readReceipts?.length) socket.fire("chat:read-receipt",{ids:j.readReceipts.map(x=>x.id),readAt:j.readReceipts[j.readReceipts.length-1].readAt});
+      if (++pollCount % 4 === 0) socket.fire("item:refresh");
+    } catch(e) {
+      if(connected) { connected=false; socket.connected=false; socket.fire("disconnect"); }
+    } finally { if(active) timer=setTimeout(poll,3000); }
+  }
+  poll();
+  return socket;
+};
+</script>
+<script>(()=>{
 'use strict';
 const $=id=>document.getElementById(id),types=['bucket','schedule','travel','games','questions','feelings','scrapbook','draw'];
-let me=null,socket=null,items=Object.fromEntries(types.map(t=>[t,[]])),messages=[],onlineIds=new Set(),members=[],scheduleView='today',pendingInstall=null;
-let currentPage = "home";
+let me=null,socket=null,items=Object.fromEntries(types.map(t=>[t,[]])),messages=[],onlineIds=new Set(),members=[],scheduleView='today',pendingInstall=null,currentPage='home';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stamp=s=>new Date(s||Date.now()).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 const localDate=d=>{let x=d||new Date();return [x.getFullYear(),String(x.getMonth()+1).padStart(2,'0'),String(x.getDate()).padStart(2,'0')].join('-')};
@@ -59,7 +108,7 @@ function renderMembers(){
 }
 function connectSocket(){
  if(socket)socket.disconnect();socket=io();
- socket.on('connect',()=>{$('connection').textContent='♡ Connected — messages arrive live';if(currentPage==='chat')socket.emit('chat:read')});
+ socket.on('connect',()=>{$('connection').textContent='♡ Connected — messages refresh automatically';if(currentPage==='chat')socket.emit('chat:read')});
  socket.on('disconnect',()=>$('connection').textContent='Reconnecting…');
  socket.on('connect_error',()=>$('connection').textContent='Live connection unavailable. Check your connection.');
  socket.on('presence:snapshot',x=>{onlineIds=new Set(x.userIds||[]);renderMembers()});
@@ -74,6 +123,7 @@ function connectSocket(){
  socket.on('item:created',x=>{if(items[x.type]&&!items[x.type].some(y=>y.id===x.id)){items[x.type].unshift(x);render()}});
  socket.on('item:updated',x=>{if(items[x.type]){items[x.type]=items[x.type].map(y=>y.id===x.id?{...y,...x}:y);render()}});
  socket.on('item:deleted',x=>{for(let t of types)items[t]=items[t].filter(y=>y.id!==x.id);render()});
+ socket.on('item:refresh',()=>{if(!window.__rivuRefreshing){window.__rivuRefreshing=true;Promise.all(types.map(loadType)).then(render).catch(()=>{}).finally(()=>{window.__rivuRefreshing=false})}});
 }
 async function add(type,payload){let j=await api('/api/items',{method:'POST',body:JSON.stringify({type,payload})});if(!items[type].some(x=>x.id===j.item.id)){items[type].unshift(j.item);render()}}
 async function remove(id){await api('/api/items/'+id,{method:'DELETE'});for(let t of types)items[t]=items[t].filter(x=>x.id!==id);render()}

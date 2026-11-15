@@ -1,20 +1,19 @@
 {
   "name": "rivu-couples-app",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "private": true,
-  "description": "Private two-person space with SQLite persistence and Socket.IO real-time chat",
-  "main": "server.js",
+  "description": "RiVu couples app for Vercel with Neon PostgreSQL and near-real-time chat",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "migrate:sqlite": "node migration/migrate-sqlite.cjs"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^0.10.4"
+  },
+  "devDependencies": {
     "better-sqlite3": "^11.8.1",
-    "dotenv": "^18.0.10",
-    "express": "^4.21.2",
-    "socket.io": "^4.8.1"
+    "dotenv": "^16.4.7"
   }
 }
