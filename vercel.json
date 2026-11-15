@@ -8,7 +8,12 @@
     },
   "api/items/[id].js": {
     "maxDuration": 30
-  }
+  }, "api/realtime/send.js": {
+  "maxDuration": 30
+},
+"api/realtime/read.js": {
+  "maxDuration": 30
+}
   },
   "headers": [
     {
