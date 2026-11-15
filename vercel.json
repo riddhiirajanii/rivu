@@ -1,8 +1,9 @@
+
 {
   "version": 2,
   "installCommand": "npm install --omit=dev",
   "functions": {
-    "api/[[...route]].js": {
+    "api/[...route].js": {
       "maxDuration": 30
     }
   },
