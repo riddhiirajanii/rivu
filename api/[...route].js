@@ -664,11 +664,6 @@ module.exports = async function handler(req, res) {
 
       const encoded = JSON.stringify(payload);
 
-      if (encoded.length > 1500000) {
-        return res.status(413).json({
-          error: "That entry is too large. Try a smaller image."
-        });
-      }
 
       const t = now();
 
@@ -753,11 +748,6 @@ module.exports = async function handler(req, res) {
 
       const encoded = JSON.stringify(merged);
 
-      if (encoded.length > 1500000) {
-        return res.status(413).json({
-          error: "Entry is too large."
-        });
-      }
 
       const t = now();
 

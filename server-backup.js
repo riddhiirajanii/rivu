@@ -110,7 +110,7 @@ app.patch("/api/profile",auth,(req,res)=>{
   const avatar=req.body.avatar===null?null:cleanText(req.body.avatar,500000);
   if(!name) return res.status(400).json({error:"Please enter a display name."});
   if(avatar && !/^data:image\/(png|jpeg|webp|gif);base64,/.test(avatar)) return res.status(400).json({error:"Please use a PNG, JPG, WEBP, or GIF image."});
-  if(avatar && avatar.length>450000) return res.status(413).json({error:"Please use a smaller profile picture (about 300 KB or less)."});
+  
   db.prepare("UPDATE users SET name=?,avatar=? WHERE id=?").run(name,avatar,req.user.id);
   const updated=db.prepare("SELECT * FROM users WHERE id=?").get(req.user.id);
   io.to("room:"+req.user.room_id).emit("profile:updated",{id:updated.id,name:updated.name,avatar:updated.avatar});
@@ -126,7 +126,7 @@ app.post("/api/items",auth,(req,res)=>{
   const type=String(req.body.type||"");const payload=req.body.payload;
   if(!validType(type)||!payload||typeof payload!=="object"||Array.isArray(payload)) return res.status(400).json({error:"Invalid item."});
   const encoded=JSON.stringify(payload);
-  if(encoded.length>1500000) return res.status(413).json({error:"That entry is too large. Try a smaller image."});
+  
   const t=now();const result=db.prepare("INSERT INTO items(room_id,user_id,type,payload,created_at,updated_at) VALUES(?,?,?,?,?,?)").run(req.user.room_id,req.user.id,type,encoded,t,t);
   const item={id:result.lastInsertRowid,type,...payload,createdAt:t,updatedAt:t,author:req.user.name};
   io.to("room:"+req.user.room_id).emit("item:created",item);
@@ -138,7 +138,6 @@ app.patch("/api/items/:id",auth,(req,res)=>{
   const payload=req.body.payload;
   if(!payload||typeof payload!=="object"||Array.isArray(payload)) return res.status(400).json({error:"Invalid update."});
   const merged={...JSON.parse(row.payload),...payload};const encoded=JSON.stringify(merged);
-  if(encoded.length>1500000) return res.status(413).json({error:"Entry is too large."});
   db.prepare("UPDATE items SET payload=?,updated_at=? WHERE id=?").run(encoded,now(),id);
   const item={id,type:row.type,...merged,updatedAt:now()};
   io.to("room:"+req.user.room_id).emit("item:updated",item);res.json({item});
