@@ -7,11 +7,13 @@
     "migrate:sqlite": "node migration/migrate-sqlite.cjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
     "dotenv": "^18.0.10",
-    "socket.io": "^4.8.4"
+    "socket.io": "^4.8.4",
+    "web-push": "^3.6.7"
   }
 }
+

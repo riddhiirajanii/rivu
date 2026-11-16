@@ -13,6 +13,14 @@
 },
 "api/realtime/read.js": {
   "maxDuration": 30
+},"api/push/public-key.js": {
+  "maxDuration": 30
+},
+"api/push/subscribe.js": {
+  "maxDuration": 30
+},
+"api/push/unsubscribe.js": {
+  "maxDuration": 30
 }
   },
   "headers": [
