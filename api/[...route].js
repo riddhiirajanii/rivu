@@ -575,11 +575,6 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      if (avatar && avatar.length > 450000) {
-        return res.status(413).json({
-          error: "Please use a smaller profile picture (about 300 KB or less)."
-        });
-      }
 
       const [updated] = await sql`
         UPDATE users
