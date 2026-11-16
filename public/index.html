@@ -285,14 +285,14 @@ document.addEventListener('submit',async e=>{
  let f=e.target.closest('form[data-kind]');if(!f)return;e.preventDefault();let t=f.dataset.kind,fd=new FormData(f),text=String(fd.get('text')||'').trim();if(!text)return;let payload={text};
  if(t==='schedule'){payload.time=fd.get('time');payload.date=fd.get('date');payload.who=fd.get('who')}
  if(t==='feelings'){payload.who=fd.get('who');payload.private=fd.has('private')}
- if(t==='scrapbook'){payload.note=fd.get('note')||'';let file=fd.get('photo');if(file?.size){if(file.size>850000){alert('Please choose an image under 850 KB.');return}payload.photo=await new Promise(resolve=>{let r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(file)})}}
+ if(t==='scrapbook'){payload.note=fd.get('note')||'';let file=fd.get('photo');if(file?.size){payload.photo=await new Promise(resolve=>{let r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(file)})}}
  try{await add(t,payload);f.reset();if(t==='schedule')f.elements.date.value=localDate()}catch(err){alert(err.message)}
 });
 $('chatForm').onsubmit=e=>{e.preventDefault();let text=$('chatInput').value.trim();if(!text)return;if(!socket?.connected){alert('Not connected to live chat. Check your connection and try again.');return}socket.emit('chat:send',text,ack=>{if(ack?.error)alert(ack.error);else $('chatInput').value=''})};
 $('logout').onclick=async()=>{try{await api('/api/logout',{method:'POST'})}catch{}if(socket)socket.disconnect();me=null;showAuth('login')};
 $('profileOpen').onclick=()=>{$('profileModal').classList.remove('hidden');$('profileName').value=me.name;$('profilePhoto').value='';paintProfile()};
 $('profileClose').onclick=()=>$('profileModal').classList.add('hidden');
-$('profilePhoto').onchange=()=>{let file=$('profilePhoto').files[0];if(!file)return;if(file.size>300000){alert('Choose a profile photo under 300 KB.');$('profilePhoto').value='';return}let r=new FileReader();r.onload=()=>{$('profilePreview').innerHTML=`<img src="${r.result}" class="profile-img" style="width:68px;height:68px">`};r.readAsDataURL(file)};
+$('profilePhoto').onchange=()=>{let file=$('profilePhoto').files[0];if(!file)return;let r=new FileReader();r.onload=()=>{$('profilePreview').innerHTML=`<img src="${r.result}" class="profile-img" style="width:68px;height:68px">`};r.readAsDataURL(file)};
 $('profileForm').onsubmit=async e=>{e.preventDefault();let avatar=null,file=$('profilePhoto').files[0];if(file)avatar=await new Promise(resolve=>{let r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(file)});else avatar=me.avatar||null;try{let j=await api('/api/profile',{method:'PATCH',body:JSON.stringify({name:$('profileName').value.trim(),avatar})});me=j.user;members=members.map(m=>m.id===me.id?{...m,...me}:m);paintProfile();$('profileModal').classList.add('hidden')}catch(err){alert(err.message)}};
 function base64UrlToUint8Array(value){
  const padding='='.repeat((4-value.length%4)%4);
